@@ -147,7 +147,12 @@ class Text:
         """Converts text to bitmap images suitable for iDotMatrix devices."""
         if not font_path:
             # using open source font from https://www.fontspace.com/rain-font-f22577
-            font_path = "./fonts/Rain-DRM3.otf"
+            import os
+            # Current file is in client/modules/text.py
+            # Font is in custom_components/idotmatrix/fonts/Rain-DRM3.otf
+            # path = ../../fonts/Rain-DRM3.otf
+            base_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            font_path = os.path.join(base_path, "fonts", "Rain-DRM3.otf")
         
         # Adjust font size if not explicitly provided logic?
         # Original code took font_size as param default 20.
