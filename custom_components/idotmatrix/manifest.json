@@ -13,5 +13,10 @@
         "bleak>=0.19.0",
         "Pillow>=9.0.0"
     ],
+    "bluetooth": [
+        {
+            "local_name": "IDM-*"
+        }
+    ],
     "version": "1.0.0"
 }

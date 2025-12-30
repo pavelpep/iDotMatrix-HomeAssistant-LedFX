@@ -30,24 +30,36 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
 
         if user_input is not None:
+            address = user_input[CONF_MAC]
             return self.async_create_entry(
                 title=user_input.get(CONF_NAME, DEFAULT_NAME),
-                data=user_input,
+                data={CONF_MAC: address, CONF_NAME: user_input.get(CONF_NAME, DEFAULT_NAME)},
             )
 
-        # Discover bluetooth devices
-        # In a real implementation, we would list discovered devices.
-        # For this skeleton, we will ask for MAC address manually if discovery isn't fully wired yet
-        # or list found devices.
+        from homeassistant.components import bluetooth
         
+        # Look for devices
+        options = {}
+        for service_info in bluetooth.async_discovered_service_info(self.hass):
+             if service_info.name and str(service_info.name).startswith("IDM-"):
+                 options[service_info.address] = f"{service_info.name} ({service_info.address})"
+
+        if not options:
+            # Fallback to manual entry
+            schema = vol.Schema({
+                vol.Required(CONF_MAC): str,
+                vol.Optional(CONF_NAME, default=DEFAULT_NAME): str,
+            })
+        else:
+            # Show list
+            schema = vol.Schema({
+                vol.Required(CONF_MAC): vol.In(options),
+                vol.Optional(CONF_NAME, default=DEFAULT_NAME): str,
+            })
+
         return self.async_show_form(
             step_id="user",
-            data_schema=vol.Schema(
-                {
-                    vol.Required(CONF_MAC): str,
-                    vol.Optional(CONF_NAME, default=DEFAULT_NAME): str,
-                }
-            ),
+            data_schema=schema,
             errors=errors,
         )
 
