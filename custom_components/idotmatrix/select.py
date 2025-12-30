@@ -165,7 +165,7 @@ class IDotMatrixFont(IDotMatrixEntity, SelectEntity):
         options = []
         if os.path.isdir(fonts_path):
             for file in os.listdir(fonts_path):
-                if file.endswith((".otf", ".ttf")):
+                if file.endswith((".otf", ".ttf", ".bdf")):
                     options.append(file)
         return sorted(options) if options else ["Rain-DRM3.otf"]
 

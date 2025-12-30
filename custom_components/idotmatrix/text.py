@@ -92,7 +92,10 @@ class IDotMatrixText(IDotMatrixEntity, TextEntity):
         font_size = int(settings.get("font_size", 10))
 
         try:
-            font = ImageFont.truetype(font_path, font_size)
+            if font_path.lower().endswith(".bdf"):
+                 font = ImageFont.load(font_path)
+            else:
+                 font = ImageFont.truetype(font_path, font_size)
         except:
             font = ImageFont.load_default()
 

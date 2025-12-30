@@ -150,7 +150,13 @@ class Text:
             if os.path.exists(potential_path):
                 font_path = potential_path
         
-        font = ImageFont.truetype(font_path, font_size)
+        if font_path:
+            if font_path.lower().endswith(".bdf") or font_path.lower().endswith(".pcf"):
+                font = ImageFont.load(font_path)
+            else:
+                font = ImageFont.truetype(font_path, font_size)
+        else:
+             font = ImageFont.truetype(font_path, font_size)
         byte_stream = bytearray()
         
         if not proportional:
