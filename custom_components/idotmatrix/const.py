@@ -5,3 +5,25 @@ CONF_MAC = "mac_address"
 CONF_NAME = "name"
 
 DEFAULT_NAME = "iDotMatrix"
+CONF_MAC = "mac_address"
+
+ANIMATION_MODES = {
+    "Hold": 0,
+    "Left": 1,
+    "Right": 2,
+    "Up": 3,
+    "Down": 4,
+    "Blink": 5,
+    "Fade": 6,
+    "Tetris": 7,
+    "Fill": 8,
+}
+
+COLOR_MODES = {
+    "White": 0,
+    "Custom Color": 1,
+    "Rainbow 1": 2,
+    "Rainbow 2": 3,
+    "Rainbow 3": 4,
+    "Rainbow 4": 5,
+}

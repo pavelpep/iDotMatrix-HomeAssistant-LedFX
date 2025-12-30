@@ -42,13 +42,17 @@ class IDotMatrixText(IDotMatrixEntity, TextEntity):
         """Change the text value."""
         if value:
             # Default settings for quick text
+            # Retrieve settings from coordinator
+            settings = self.coordinator.text_settings
+            
             await Text().setMode(
                 text=value,
-                font_size=16,
-                text_mode=1, # Marquee
-                speed=95,
-                text_color_mode=1,
-                text_color=(255, 0, 0), # Red
+                font_size=16, # Could be made configurable later
+                font_path=settings.get("font"),
+                text_mode=settings.get("animation_mode", 1),
+                speed=settings.get("speed", 80),
+                text_color_mode=settings.get("color_mode", 1),
+                text_color=tuple(settings.get("color", (255, 0, 0))),
                 text_bg_mode=0,
                 text_bg_color=(0, 0, 0)
             )

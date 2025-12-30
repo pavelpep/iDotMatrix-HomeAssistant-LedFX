@@ -29,6 +29,15 @@ class IDotMatrixCoordinator(DataUpdateCoordinator):
             update_interval=timedelta(seconds=60),
         )
         self.entry = entry
+        
+        # Shared settings for Text entity
+        self.text_settings = {
+            "font": "Rain-DRM3.otf",
+            "animation_mode": 1,  # Marquee
+            "speed": 80,
+            "color_mode": 1,      # Single Color
+            "color": [255, 0, 0], # Red default
+        }
 
     async def _async_update_data(self):
         """Fetch data from the device."""
