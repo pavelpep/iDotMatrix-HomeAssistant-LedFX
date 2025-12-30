@@ -25,6 +25,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # For now, we will assume one device per integration instance or update the singleton.
     
     hass.data[DOMAIN][entry.entry_id] = entry.data
+    
+    # Initialize the Singleton ConnectionManager with the device address
+    manager = ConnectionManager()
+    manager.address = entry.data[CONF_MAC]
+
+    from .coordinator import IDotMatrixCoordinator
+    coordinator = IDotMatrixCoordinator(hass, entry)
+    await coordinator.async_config_entry_first_refresh()
+    
+    # Store coordinator instance
+    hass.data[DOMAIN][entry.entry_id] = coordinator
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
