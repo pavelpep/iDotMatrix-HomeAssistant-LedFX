@@ -21,7 +21,31 @@ async def async_setup_entry(
         IDotMatrixTextSpeed(coordinator, entry),
         IDotMatrixTextSpacing(coordinator, entry),
         IDotMatrixTextSpacingVertical(coordinator, entry),
+        IDotMatrixTextBlur(coordinator, entry),
     ])
+
+class IDotMatrixTextBlur(IDotMatrixEntity, NumberEntity):
+    """Representation of the Text Blur control."""
+
+    _attr_icon = "mdi:blur"
+    _attr_name = "Text Sharpness/Blur"
+    _attr_native_min_value = 0
+    _attr_native_max_value = 5
+    _attr_native_step = 1
+    _attr_entity_category = EntityCategory.CONFIG
+    
+    @property
+    def unique_id(self) -> str:
+        return f"{self._mac}_text_blur"
+
+    @property
+    def native_value(self) -> float | None:
+        return self.coordinator.text_settings.get("blur", 5)
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Set the value."""
+        self.coordinator.text_settings["blur"] = int(value)
+        self.async_write_ha_state()
 
 class IDotMatrixTextSpeed(IDotMatrixEntity, NumberEntity):
     """Representation of the Text Speed number."""

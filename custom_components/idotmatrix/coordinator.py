@@ -40,6 +40,7 @@ class IDotMatrixCoordinator(DataUpdateCoordinator):
             "spacing": 1,         # Horizontal Spacing (pixels)
             "spacing_y": 1,       # Vertical Spacing (pixels)
             "proportional": True, # Use proportional font rendering
+            "blur": 5,            # Text Blur/Antialiasing (0=Sharp, 5=Smooth)
             "multiline": False,   # Wrap text as image
             "multiline": False,   # Wrap text as image
             "screen_size": 32,    # 32x32 or 16x16

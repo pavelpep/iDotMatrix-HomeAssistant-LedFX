@@ -155,32 +155,64 @@ class IDotMatrixText(IDotMatrixEntity, TextEntity):
             lines.append(current_line)
 
         # Draw lines
-        image = Image.new("RGB", (screen_size, screen_size), (0, 0, 0))
-        draw = ImageDraw.Draw(image)
+        # Create RGBA image for text to handle alpha/blur processing
+        text_layer = Image.new("RGBA", (screen_size, screen_size), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(text_layer)
         
         spacing_y = int(settings.get("spacing_y", 1))
+        blur = int(settings.get("blur", 5))
         
         y = 0
         # Calculate line height
         ascent, descent = font.getmetrics()
         line_height = ascent + descent + spacing_y
         
+        # Draw words
         for line_words in lines:
             if y >= screen_size: break
             x = 0
             for i, word in enumerate(line_words):
-                # Draw word char by char
                 for char in word:
                     if x >= screen_size: break
-                    draw.text((x, y), char, font=font, fill=color)
+                    draw.text((x, y), char, font=font, fill=(255, 255, 255, 255))
                     bbox = font.getbbox(char)
                     char_w = (bbox[2] - bbox[0]) if bbox else font.getlength(char)
                     x += char_w + spacing
-                
-                # Draw space after word (except last word)
                 if i < len(line_words) - 1:
                      x += space_width
             y += line_height
+            
+        # Process Blur/Sharpness
+        if blur < 5:
+             # Extract alpha
+             r, g, b, a = text_layer.split()
+             # Calculate gain based on blur setting (0=Sharpest, 5=softest)
+             # gain=1 is normal. gain=high is binary.
+             # blur=0 -> gain=10? 
+             # blur=4 -> gain=1.2
+             gain = 1.0 + ((5 - blur) * 2.0) 
+             
+             # Apply contrast to alpha channel
+             def apply_contrast(p):
+                 v = (p - 128) * gain + 128
+                 return max(0, min(255, int(v)))
+             
+             a = a.point(apply_contrast)
+             text_layer.putalpha(a)
+             
+        # Composite text layer over black background with selected color
+        final_image = Image.new("RGB", (screen_size, screen_size), (0, 0, 0))
+        
+        # Colorize logic: We have white text. We want 'color'.
+        # We can use ImageOps.colorize on the alpha channel?
+        # Or simple alpha composite.
+        r, g, b, a = text_layer.split()
+        colored_text = Image.new("RGB", (screen_size, screen_size), color)
+        
+        # Paste colored text using processed alpha as mask
+        final_image.paste(colored_text, mask=a)
+        
+        image = final_image
             
         # Save to temp file and upload
         with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
