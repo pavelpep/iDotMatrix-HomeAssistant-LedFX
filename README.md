@@ -1,4 +1,4 @@
-# iDotMatrix Home Assistant Integration
+# iDotMatrix Home Assistant Integration (DOES NOT WORK (YET))
 
 > [!WARNING]
 > **WORK IN PROGRESS**
