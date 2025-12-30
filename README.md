@@ -1,5 +1,9 @@
 # iDotMatrix Home Assistant Integration
 
+> [!WARNING]
+> **WORK IN PROGRESS**
+> This integration is currently under active development. Features may be incomplete, and you may encounter bugs or breaking changes. It might not work yet for all users. Use at your own risk!
+
 A custom component for [Home Assistant](https://www.home-assistant.io/) to control **iDotMatrix** Bluetooth displays.
 
 ## Features
@@ -11,12 +15,15 @@ A custom component for [Home Assistant](https://www.home-assistant.io/) to contr
 
 ## Installation
 
-### HACS (Recommended)
-1.  Open HACS in Home Assistant.
-2.  Go to "Integrations" > "Explore & Download Repositories".
-3.  Search for `iDotMatrix`.
-4.  Click "Download".
-5.  Restart Home Assistant.
+### HACS (Custom Repository)
+1.  Open **HACS** in Home Assistant.
+2.  Go to **Integrations**.
+3.  Click the **three dots** in the top right corner and select **Custom repositories**.
+4.  Paste the URL of this repository: `https://github.com/adriantukendorf/iDotMatrix-HomeAssistant`
+5.  Select **Integration** as the category.
+6.  Click **Add**.
+7.  Find **iDotMatrix** in the list and click **Download**.
+8.  Restart Home Assistant.
 
 ### Manual
 1.  Download this repository.
