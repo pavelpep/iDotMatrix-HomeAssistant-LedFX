@@ -37,7 +37,8 @@ class IDotMatrixCoordinator(DataUpdateCoordinator):
             "speed": 80,
             "color_mode": 1,      # Single Color
             "color": [255, 0, 0], # Red default
-            "spacing": 1,         # Spacing between letters (pixels)
+            "spacing": 1,         # Horizontal Spacing (pixels)
+            "spacing_y": 1,       # Vertical Spacing (pixels)
             "proportional": True, # Use proportional font rendering
             "multiline": False,   # Wrap text as image
             "multiline": False,   # Wrap text as image

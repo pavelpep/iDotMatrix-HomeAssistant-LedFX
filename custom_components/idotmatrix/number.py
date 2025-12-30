@@ -20,10 +20,11 @@ async def async_setup_entry(
     async_add_entities([
         IDotMatrixTextSpeed(coordinator, entry),
         IDotMatrixTextSpacing(coordinator, entry),
+        IDotMatrixTextSpacingVertical(coordinator, entry),
     ])
 
 class IDotMatrixTextSpeed(IDotMatrixEntity, NumberEntity):
-    """Number entity to control text scroll speed."""
+    """Representation of the Text Speed number."""
 
     _attr_icon = "mdi:speedometer"
     _attr_name = "Text Speed"
@@ -47,10 +48,10 @@ class IDotMatrixTextSpeed(IDotMatrixEntity, NumberEntity):
         self.async_write_ha_state()
 
 class IDotMatrixTextSpacing(IDotMatrixEntity, NumberEntity):
-    """Number entity to control text letter spacing."""
+    """Representation of the Text Horizontal Spacing number."""
 
     _attr_icon = "mdi:arrow-expand-horizontal"
-    _attr_name = "Text Spacing"
+    _attr_name = "Text Horizontal Spacing"
     _attr_native_min_value = 0
     _attr_native_max_value = 20
     _attr_native_step = 1
@@ -68,4 +69,27 @@ class IDotMatrixTextSpacing(IDotMatrixEntity, NumberEntity):
     async def async_set_native_value(self, value: float) -> None:
         """Set the value."""
         self.coordinator.text_settings["spacing"] = int(value)
+        self.async_write_ha_state()
+
+class IDotMatrixTextSpacingVertical(IDotMatrixEntity, NumberEntity):
+    """Representation of the Text Vertical Spacing number."""
+
+    _attr_icon = "mdi:arrow-expand-vertical"
+    _attr_name = "Text Vertical Spacing"
+    _attr_native_min_value = 0
+    _attr_native_max_value = 20
+    _attr_native_step = 1
+    _attr_entity_category = EntityCategory.CONFIG
+    
+    @property
+    def unique_id(self) -> str:
+        return f"{self._mac}_text_spacing_y"
+
+    @property
+    def native_value(self) -> float | None:
+        return self.coordinator.text_settings.get("spacing_y", 1)
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Set the value."""
+        self.coordinator.text_settings["spacing_y"] = int(value)
         self.async_write_ha_state()

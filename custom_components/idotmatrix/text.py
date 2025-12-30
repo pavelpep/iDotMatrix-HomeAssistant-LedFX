@@ -145,10 +145,12 @@ class IDotMatrixText(IDotMatrixEntity, TextEntity):
         image = Image.new("RGB", (screen_size, screen_size), (0, 0, 0))
         draw = ImageDraw.Draw(image)
         
+        spacing_y = int(settings.get("spacing_y", 1))
+        
         y = 0
         # Calculate line height
         ascent, descent = font.getmetrics()
-        line_height = ascent + descent + 1 # +1 padding
+        line_height = ascent + descent + spacing_y
         
         for line_words in lines:
             if y >= screen_size: break
