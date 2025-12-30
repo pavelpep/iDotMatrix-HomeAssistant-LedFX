@@ -54,7 +54,9 @@ class IDotMatrixText(IDotMatrixEntity, TextEntity):
                 text_color_mode=settings.get("color_mode", 1),
                 text_color=tuple(settings.get("color", (255, 0, 0))),
                 text_bg_mode=0,
-                text_bg_color=(0, 0, 0)
+                text_bg_color=(0, 0, 0),
+                spacing=settings.get("spacing", 1),
+                proportional=settings.get("proportional", True)
             )
             self._attr_native_value = value
             self.async_write_ha_state()

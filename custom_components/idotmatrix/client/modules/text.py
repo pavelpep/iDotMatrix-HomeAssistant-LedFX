@@ -30,6 +30,8 @@ class Text:
         text_bg_mode: int = 0,
         text_bg_color: Tuple[int, int, int] = (0, 255, 0),
         compact_mode: bool = False,
+        spacing: int = 0,
+        proportional: bool = True,
     ) -> Union[bool, bytearray]:
         
         # Determine layout based on mode
@@ -56,7 +58,9 @@ class Text:
                     font_path=font_path,
                     image_width=image_width,
                     image_height=image_height,
-                    separator=separator
+                    separator=separator,
+                    spacing=spacing,
+                    proportional=proportional
                 ),
                 separator=separator
             )
@@ -79,20 +83,7 @@ class Text:
         text_bg_color: Tuple[int, int, int] = (0, 255, 0),
         separator: bytes = b"\x05\xff\xff\xff"
     ) -> bytearray:
-        """Constructs a packet with the settings and bitmaps for iDotMatrix devices.
-
-        Args:
-            text_bitmaps (bytearray): bitmap list of the text characters
-            text_mode (int, optional): Text mode. Defaults to 0. 0 = replace text, 1 = marquee, 2 = reversed marquee, 3 = vertical rising marquee, 4 = vertical lowering marquee, 5 = blinking, 6 = fading, 7 = tetris, 8 = filling
-            speed (int, optional): Speed of Text. Defaults to 95.
-            text_color_mode (int, optional): Text Color Mode. Defaults to 1. 0 = white, 1 = use given RGB color, 2,3,4,5 = rainbow modes
-            text_color (Tuple[int, int, int], optional): Text RGB Color. Defaults to (255, 0, 0).
-            text_bg_mode (int, optional): Text Background Mode. Defaults to 0. 0 = black, 1 = use given RGB color
-            text_bg_color (Tuple[int, int, int], optional): Background RGB Color. Defaults to (0, 0, 0).
-
-        Returns:
-            bytearray: _description_
-        """
+        """Constructs a packet with the settings and bitmaps for iDotMatrix devices."""
         num_chars = text_bitmaps.count(separator)
 
         text_metadata = bytearray(
@@ -142,7 +133,8 @@ class Text:
 
     def _StringToBitmaps(
         self, text: str, font_path: Optional[str] = None, font_size: Optional[int] = 20,
-        image_width: int = 16, image_height: int = 32, separator: bytes = b"\x05\xff\xff\xff"
+        image_width: int = 16, image_height: int = 32, separator: bytes = b"\x05\xff\xff\xff",
+        spacing: int = 0, proportional: bool = True
     ) -> bytearray:
         """Converts text to bitmap images suitable for iDotMatrix devices."""
         import os
@@ -158,35 +150,101 @@ class Text:
             if os.path.exists(potential_path):
                 font_path = potential_path
         
-        # Adjust font size if not explicitly provided logic?
-        # Original code took font_size as param default 20.
-        # If compact mode (height 16), 20 is too big.
-        # But font_size is passed from setMode.
-        # If user passes 20 for compact, it might clip.
-        
         font = ImageFont.truetype(font_path, font_size)
         byte_stream = bytearray()
-        for char in text:
-            # todo make image the correct size for 16x16, 32x32 and 64x64
-            image = Image.new("1", (image_width, image_height), 0)
-            draw = ImageDraw.Draw(image)
+        
+        if not proportional:
+            # Legacy Fixed Width Logic
+            for char in text:
+                image = Image.new("1", (image_width, image_height), 0)
+                draw = ImageDraw.Draw(image)
+                
+                _, _, text_width, text_height = draw.textbbox((0, 0), text=char, font=font)
+                text_x = (image_width - text_width) // 2
+                text_y = (image_height - text_height) // 2
+                draw.text((text_x, text_y), char, fill=1, font=font)
+                
+                bitmap = bytearray()
+                for y in range(image_height):
+                    for x in range(image_width):
+                        if x % 8 == 0:
+                            byte = 0
+                        pixel = image.getpixel((x, y))
+                        byte |= (pixel & 1) << (x % 8)
+                        if x % 8 == 7 or x == image_width - 1:
+                            bitmap.append(byte)
+                byte_stream.extend(separator + bitmap)
+            return byte_stream
             
-            # Using textbbox to center
-            # Note: For small 8x16, centering might be tricky with large fonts.
+        else:
+            # Proportional Logic (Slicing)
+            # 1. Measure total width with spacing
+            total_width = 0
+            # To handle spacing correctly, we draw tightly then add spacing?
+            # Or use draw.text callback?
+            # For simplicity, we draw the whole string at once to let PIL handle basic kerning,
+            # then we add extra spacing if requested by iterating chars?
+            # User wants "0 to no space", which implies they might want TIGHTER than PIL defaults?
+            # But PIL is standard. Let's assume proportional=True means "Natural".
+            # And `spacing` adds EXTRA pixels.
             
-            _, _, text_width, text_height = draw.textbbox((0, 0), text=char, font=font)
-            text_x = (image_width - text_width) // 2
-            text_y = (image_height - text_height) // 2
-            draw.text((text_x, text_y), char, fill=1, font=font)
+            # Draw char by char to allow custom spacing
+            char_images = []
+            max_h = image_height
             
-            bitmap = bytearray()
-            for y in range(image_height):
-                for x in range(image_width):
-                    if x % 8 == 0:
-                        byte = 0
-                    pixel = image.getpixel((x, y))
-                    byte |= (pixel & 1) << (x % 8)
-                    if x % 8 == 7 or x == image_width - 1:
-                        bitmap.append(byte)
-            byte_stream.extend(separator + bitmap)
-        return byte_stream
+            for char in text:
+                 # get size
+                 # Use dummy draw
+                 dummy = Image.new("1", (1, 1), 0)
+                 d = ImageDraw.Draw(dummy)
+                 bbox = d.textbbox((0, 0), text=char, font=font)
+                 w = bbox[2] - bbox[0]
+                 # h = bbox[3] - bbox[1] # ignore height, use max
+                 char_images.append((char, w))
+                 
+            total_width = sum([w + spacing for char, w in char_images])
+            # Ensure width is at least one block?
+            if total_width < image_width:
+                total_width = image_width
+                
+            # Create big canvas
+            canvas = Image.new("1", (total_width, image_height), 0)
+            draw = ImageDraw.Draw(canvas)
+            
+            current_x = 0
+            for char, w in char_images:
+                # Vertically center?
+                bbox = draw.textbbox((0, 0), text=char, font=font)
+                h = bbox[3] - bbox[1]
+                y = (image_height - h) // 2
+                # Correct Y using font metrics if possible for baseline consistency, but centering per char is safer for pixel fonts
+                # Actually, standard draw.text usually handles baseline.
+                # If we center each char vertically independently, it might look jumpy.
+                # Better to use a constant Y for the whole line.
+                draw.text((current_x, y), char, fill=1, font=font)
+                current_x += w + spacing
+                
+            # Slice into chunks of image_width (16)
+            for i in range(0, total_width, image_width):
+                # crop(box) -> (left, upper, right, lower)
+                chunk = canvas.crop((i, 0, i + image_width, image_height))
+                
+                # If last chunk is narrow, pad it?
+                if chunk.size[0] < image_width:
+                    tmp = Image.new("1", (image_width, image_height), 0)
+                    tmp.paste(chunk, (0, 0))
+                    chunk = tmp
+                    
+                # Convert to bitmap
+                bitmap = bytearray()
+                for y in range(image_height):
+                    for x in range(image_width):
+                        if x % 8 == 0:
+                            byte = 0
+                        pixel = chunk.getpixel((x, y))
+                        byte |= (pixel & 1) << (x % 8)
+                        if x % 8 == 7 or x == image_width - 1:
+                            bitmap.append(byte)
+                byte_stream.extend(separator + bitmap)
+                
+            return byte_stream
