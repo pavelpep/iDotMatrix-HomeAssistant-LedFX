@@ -61,12 +61,6 @@ class IDotMatrixClockFormat(IDotMatrixEntity, SelectEntity):
         await self.coordinator.async_update_device()
         self.async_write_ha_state()
 
-class IDotMatrixClockFace(IDotMatrixEntity, SelectEntity):
-    """Representation of the Clock Face selector."""
-
-    _attr_icon = "mdi:clock-digital"
-# ... (rest of file)
-
 class IDotMatrixScreenSize(IDotMatrixEntity, SelectEntity):
     """Selector for Screen Size."""
     _attr_icon = "mdi:monitor-screenshot"
@@ -101,6 +95,11 @@ class IDotMatrixScreenSize(IDotMatrixEntity, SelectEntity):
         self._attr_current_option = option
         await self.coordinator.async_update_device()
         self.async_write_ha_state()
+
+class IDotMatrixClockFace(IDotMatrixEntity, SelectEntity):
+    """Representation of the Clock Face selector."""
+
+    _attr_icon = "mdi:clock-digital"
     _attr_options = CLOCK_STYLES
     _attr_name = "Clock Face"
     _attr_current_option = None
@@ -123,6 +122,7 @@ class IDotMatrixScreenSize(IDotMatrixEntity, SelectEntity):
             await self.coordinator.async_update_device()
             self._attr_current_option = option
             self.async_write_ha_state()
+
 
 
 

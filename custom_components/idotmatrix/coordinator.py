@@ -15,7 +15,7 @@ from .const import DOMAIN
 from .client.connectionManager import ConnectionManager
 from .client.modules.text import Text
 from .client.modules.image import Image as IDMImage
-from .client.modules.clock import Cock as Clock # Typo in client lib? Checking import usage elsewhere.
+from .client.modules.clock import Clock
 
 import os
 import tempfile
@@ -89,11 +89,17 @@ class IDotMatrixCoordinator(DataUpdateCoordinator):
         else:
             # Render Clock (Default fallback)
             # Use self.text_settings for clock config
+            # Retrieve color and format
+            c = settings.get("color", [255, 0, 0])
+            h24 = settings.get("clock_format", "24h") == "24h"
+            
             await Clock().setMode(
-                mode=settings.get("clock_style", 0),
-                color=tuple(settings.get("color", (255, 0, 0))),
-                show_date=settings.get("clock_date", True),
-                clock_format=settings.get("clock_format", "24h")
+                style=settings.get("clock_style", 0),
+                visibleDate=settings.get("clock_date", True),
+                hour24=h24,
+                r=c[0],
+                g=c[1],
+                b=c[2]
             )
             
         # Notify listeners to update UI states

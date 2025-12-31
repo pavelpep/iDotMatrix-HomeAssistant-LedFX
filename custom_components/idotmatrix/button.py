@@ -36,11 +36,15 @@ class IDotMatrixSyncTime(IDotMatrixEntity, ButtonEntity):
 
     async def async_press(self) -> None:
         """Handle the button press."""
-        # Use HA time or system time?
-        # Ideally pass datetime.now() values
-        # Common().setTime() currently doesn't take args, it uses system time.
-        # Assuming system time of HA host is correct.
-        await Common().setTime()
+        now = datetime.datetime.now()
+        await Common().setTime(
+            year=now.year,
+            month=now.month,
+            day=now.day,
+            hour=now.hour,
+            minute=now.minute,
+            second=now.second
+        )
 
 class IDotMatrixClear(IDotMatrixEntity, ButtonEntity):
     """Button to clear screen."""
