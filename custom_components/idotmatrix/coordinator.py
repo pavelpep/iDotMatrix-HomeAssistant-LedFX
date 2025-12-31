@@ -57,6 +57,7 @@ class IDotMatrixCoordinator(DataUpdateCoordinator):
             "clock_date": True,   # Show date
             "clock_format": "24h",# 12h or 24h
             "fun_text_delay": 0.4,# Fun Text delay in seconds
+            "autosize": False,    # Auto-scale font to fit screen
         }
 
     async def _async_update_data(self):
@@ -112,6 +113,8 @@ class IDotMatrixCoordinator(DataUpdateCoordinator):
         font_name = settings.get("font")
         color = tuple(settings.get("color", (255, 0, 0)))
         spacing = int(settings.get("spacing", 1))
+        spacing_y = int(settings.get("spacing_y", 1))
+        blur = int(settings.get("blur", 5))
         
         # Resolve font path
         # Note: __file__ here is coordinator.py, so we need to adjust path logic
@@ -127,76 +130,111 @@ class IDotMatrixCoordinator(DataUpdateCoordinator):
             elif os.path.exists(font_name):
                 font_path = font_name
                 
-        # Determine font size
-        font_size = int(settings.get("font_size", 10))
-
-        try:
-            if font_path.lower().endswith(".bdf"):
-                 font = ImageFont.load(font_path)
-            else:
-                 font = ImageFont.truetype(font_path, font_size)
-        except:
-            font = ImageFont.load_default()
-
-        # Pixel-based Word Wrapping
-        words = text.split(' ')
-        lines = []
-        current_line = []
+        # Determine font size and max scanning range if autosize is on
+        initial_font_size = int(settings.get("font_size", 10))
+        target_font_size = initial_font_size
         
-        def get_word_width(word):
-            if not word: return 0
-            w = 0
-            for i, char in enumerate(word):
-                bbox = font.getbbox(char)
-                char_w = (bbox[2] - bbox[0]) if bbox else font.getlength(char)
-                w += char_w + spacing
-            return w - spacing # Remove last spacing if > 0
+        if settings.get("autosize", False):
+            # Start from user's size or 32, whichever is reasonable, and shrink until fit
+            # Or always start large? Let's start from current size and shrink, 
+            # OR start from 32 (max) to find biggest possible fit? "Perfectly" usually means "Maximize".
+            # Let's try to Maximize: Start at 32 (or screen_size) down to 6.
+            start_size = screen_size
+            end_size = 6
+        else:
+            # Single pass
+            start_size = initial_font_size
+            end_size = initial_font_size
 
-        # Space width calculation
-        try:
-             space_bbox = font.getbbox(" ")
-             if space_bbox:
-                 space_w = space_bbox[2] - space_bbox[0]
-             else:
-                 space_w = font.getlength(" ")
-        except:
-             space_w = 4
-             
-        space_width = space_w + spacing
-        if space_width < 1: space_width = 1
+        font_path_to_use = font_path
 
-        current_line_width = 0
+        # Iterative resizing loop
+        for s in range(start_size, end_size - 1, -1):
+            target_font_size = s
+            try:
+                if font_path_to_use.lower().endswith(".bdf"):
+                     font = ImageFont.load(font_path_to_use)
+                     # BDF fonts are fixed size, autosize won't work well unless we pick different files.
+                     # For now, skip autosize on BDF or just use it as is.
+                else:
+                     font = ImageFont.truetype(font_path_to_use, s)
+            except:
+                font = ImageFont.load_default()
+
+            # Pixel-based Word Wrapping (Simulated for check)
+            words = text.split(' ')
+            lines = []
+            current_line = []
+            
+            def get_word_width(word):
+                if not word: return 0
+                w = 0
+                for i, char in enumerate(word):
+                    bbox = font.getbbox(char)
+                    char_w = (bbox[2] - bbox[0]) if bbox else font.getlength(char)
+                    w += char_w + spacing
+                return w - spacing
+            
+            # Recalculate space width for this font size
+            try:
+                space_bbox = font.getbbox(" ")
+                space_w = (space_bbox[2] - space_bbox[0]) if space_bbox else font.getlength(" ")
+            except:
+                space_w = 4
+            space_width = space_w + spacing
+            if space_width < 1: space_width = 1
+            
+            current_line_width = 0
+            
+            for word in words:
+                word_width = get_word_width(word)
+                if current_line_width + word_width <= screen_size:
+                    current_line.append(word)
+                    current_line_width += word_width + space_width
+                else:
+                    if current_line:
+                        lines.append(current_line)
+                        current_line = []
+                        current_line_width = 0
+                    current_line.append(word)
+                    current_line_width = word_width + space_width
+            if current_line:
+                lines.append(current_line)
+            
+            # Check Height
+            ascent, descent = font.getmetrics()
+            line_height = ascent + descent + spacing_y
+            total_height = len(lines) * line_height
+            
+            # If autosize is OFF, we accept the first pass (initial_font_size)
+            if not settings.get("autosize", False):
+                break
+                
+            # If autosize is ON, check if it fits
+            if total_height <= screen_size and all(get_word_width(w) <= screen_size for w in words):
+                 # Fits!
+                 break
         
-        for word in words:
-            word_width = get_word_width(word)
-            if current_line_width + word_width <= screen_size:
-                current_line.append(word)
-                current_line_width += word_width + space_width
-            else:
-                if current_line:
-                    lines.append(current_line)
-                    current_line = []
-                    current_line_width = 0
-                current_line.append(word)
-                current_line_width = word_width + space_width
-        
-        if current_line:
-            lines.append(current_line)
-
-        # Draw lines
+        # Draw lines using chosen target_font_size
         text_layer = Image.new("RGBA", (screen_size, screen_size), (0, 0, 0, 0))
         draw = ImageDraw.Draw(text_layer)
         
-        spacing_y = int(settings.get("spacing_y", 1))
-        blur = int(settings.get("blur", 5))
-        
-        y = 0
-        ascent, descent = font.getmetrics()
-        line_height = ascent + descent + spacing_y
+        y = (screen_size - total_height) // 2 if settings.get("autosize", False) else 0 # Center vertically if autosizing
+        if y < 0: y = 0
         
         for line_words in lines:
             if y >= screen_size: break
-            x = 0
+            # Center Horizontally?
+            # Standard wrapper is left aligned. Perfect fit usually implies Center/Center.
+            # Let's calculate line width for centering
+            line_w = 0
+            for i, w in enumerate(line_words):
+                 line_w += get_word_width(w)
+                 if i < len(line_words) - 1: line_w += space_width
+            
+            x = (screen_size - line_w) // 2 if settings.get("autosize", False) else 0
+            if x < 0: x = 0
+            
             for i, word in enumerate(line_words):
                 for char in word:
                     if x >= screen_size: break

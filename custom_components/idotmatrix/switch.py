@@ -20,8 +20,44 @@ async def async_setup_entry(
     async_add_entities([
         IDotMatrixTextProportional(coordinator, entry),
         IDotMatrixMultiline(coordinator, entry),
+        IDotMatrixAutosize(coordinator, entry),
         IDotMatrixClockDate(coordinator, entry),
     ])
+
+class IDotMatrixAutosize(IDotMatrixEntity, SwitchEntity):
+    """Switch to toggle automatic font sizing (Perfect Fit)."""
+
+    _attr_icon = "mdi:arrow-expand-all"
+    _attr_name = "Text Perfect Fit (Autosize)"
+    _attr_entity_category = EntityCategory.CONFIG
+    
+    @property
+    def unique_id(self) -> str:
+        return f"{self._mac}_text_autosize"
+
+    @property
+    def is_on(self) -> bool:
+        return self.coordinator.text_settings.get("autosize", False)
+
+    async def async_turn_on(self, **kwargs) -> None:
+        self.coordinator.text_settings["autosize"] = True
+        # If multiline is not on, maybe we should turn it on? 
+        # Autosize implies fitting text to screen, which usually requires wrapping.
+        # But let's respect the user's explicit multiline choice or assume autosize enforces a fit strategy.
+        # For now, just setting the flag. The coordinator will use it.
+        # Ideally, Perfect Fit should probably imply Multiline mode or at least standard text scaling.
+        # Let's force multiline ON if Autosize is turned ON, as autosizing single line scroller is less common/useful?
+        # User said "resize text perfectly to the screen", usually means static display. Scrollers don't need resizing to fit.
+        if not self.coordinator.text_settings.get("multiline"):
+             self.coordinator.text_settings["multiline"] = True
+             
+        await self.coordinator.async_update_device()
+        self.async_write_ha_state()
+
+    async def async_turn_off(self, **kwargs) -> None:
+        self.coordinator.text_settings["autosize"] = False
+        await self.coordinator.async_update_device()
+        self.async_write_ha_state()
 
 class IDotMatrixClockDate(IDotMatrixEntity, SwitchEntity):
     """Switch to toggle date on clock."""
