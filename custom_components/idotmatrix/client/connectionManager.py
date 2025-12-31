@@ -73,15 +73,25 @@ class ConnectionManager(metaclass=SingletonMeta):
                 device = None
                 from bleak_retry_connector import establish_connection
                 
-                # Try to get device from HA Bluetooth coordinator (supports Proxies)
+                # Try to get device from HA Bluetooth coordinator
                 if self.hass:
                     from homeassistant.components import bluetooth
-                    device = bluetooth.async_ble_device_from_address(
-                        self.hass, self.address, connectable=True
-                    )
+                    
+                    # Poll for device in HA cache (wait up to 15s)
+                    # This allows time for Proxies to forward advertisements or local adapter to scan
+                    for i in range(15):
+                        device = bluetooth.async_ble_device_from_address(
+                            self.hass, self.address, connectable=True
+                        )
+                        if device:
+                            break
+                        # Only sleep if we haven't found it yet
+                        if i < 14:
+                             await asyncio.sleep(1.0)
                 
+                # If we have a device object, use establish_connection
                 if device:
-                    self.logging.info(f"Connecting using HA Bluetooth stack (Proxy Supported): {device}")
+                    self.logging.info(f"Connecting to {device.name} ({device.address})")
                     self.client = await establish_connection(
                         BleakClient, 
                         device, 
@@ -89,12 +99,11 @@ class ConnectionManager(metaclass=SingletonMeta):
                         max_attempts=3
                     )
                 else:
-                    self.logging.info(f"Connecting using direct Bleak address: {self.address}")
-                    # Fallback or direct connection without HA context (mostly for standalone testing)
-                    # For standalone, we can't easily use establish_connection without a BLEDevice object 
-                    # from a scanner, but BleakClient(address) works for local adapters.
-                    self.client = BleakClient(self.address)
-                    await self.client.connect()
+                    # If device is not found in HA cache after polling, we cannot connect reliably.
+                    # Fallback to direct client is unsafe in HA environment and usually fails with "No backend".
+                    self.logging.error(f"Device {self.address} unavailable in Home Assistant Bluetooth mesh. Ensure it is powered and within range of an adapter or proxy.")
+                    self.client = None
+                    return
                     
                 self.logging.info(f"connected to {self.address}")
             except Exception as e:
