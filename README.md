@@ -28,7 +28,7 @@ Connects directly to your device via Bluetooth (native or proxy) without any clo
     - Upload images or text-as-images (Multiline support).
     - Control panel brightness and screen dimensions (16x16 / 32x32).
 - **🔋 Device Control**:
-    - Turn On/Off, set Brightness.
+    - Turn On/Off, set Brightness, colour.
 
 ---
 
@@ -109,5 +109,5 @@ This integration fully supports **ESPHome Bluetooth Proxies**.
 ---
 
 <p align="center">
-  Built with ❤️ by Adrian Tukendorf
+  Built with ❤️ by Adrian
 </p>
