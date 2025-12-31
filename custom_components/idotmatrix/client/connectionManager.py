@@ -65,8 +65,13 @@ class ConnectionManager(metaclass=SingletonMeta):
 
     async def connect(self) -> None:
         if self.address:
-            if not self.client or not self.client.is_connected:
+            # Check if client exists and is connected
+            if self.client and self.client.is_connected:
+                return
+
+            try:
                 device = None
+                from bleak_retry_connector import establish_connection
                 
                 # Try to get device from HA Bluetooth coordinator (supports Proxies)
                 if self.hass:
@@ -76,14 +81,26 @@ class ConnectionManager(metaclass=SingletonMeta):
                     )
                 
                 if device:
-                    self.logging.info(f"Connecting using HA Bluetooth stack: {device}")
-                    self.client = BleakClient(device)
+                    self.logging.info(f"Connecting using HA Bluetooth stack (Proxy Supported): {device}")
+                    self.client = await establish_connection(
+                        BleakClient, 
+                        device, 
+                        self.address,
+                        max_attempts=3
+                    )
                 else:
                     self.logging.info(f"Connecting using direct Bleak address: {self.address}")
+                    # Fallback or direct connection without HA context (mostly for standalone testing)
+                    # For standalone, we can't easily use establish_connection without a BLEDevice object 
+                    # from a scanner, but BleakClient(address) works for local adapters.
                     self.client = BleakClient(self.address)
+                    await self.client.connect()
                     
-                await self.client.connect()
                 self.logging.info(f"connected to {self.address}")
+            except Exception as e:
+                self.logging.error(f"Failed to connect to {self.address}: {e}")
+                # Clean up client on failure
+                self.client = None
         else:
             self.logging.error("device address is not set.")
 
