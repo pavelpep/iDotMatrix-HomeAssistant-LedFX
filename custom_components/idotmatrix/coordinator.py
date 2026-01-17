@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 import asyncio
 from datetime import timedelta
+from typing import Optional
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -44,6 +45,9 @@ class IDotMatrixCoordinator(DataUpdateCoordinator):
         self.entry = entry
         self._store = Store(hass, STORAGE_VERSION, f"{STORAGE_KEY_PREFIX}{entry.entry_id}")
         
+        # LedFx Gateway instance
+        self._ledfx_gateway: Optional["LedFxGateway"] = None
+        
         # Shared settings for Text entity
         self.text_settings = {
             "current_text": "",   # The actual text content
@@ -65,6 +69,10 @@ class IDotMatrixCoordinator(DataUpdateCoordinator):
             "clock_format": "24h",# 12h or 24h
             "fun_text_delay": 0.4,# Fun Text delay in seconds
             "autosize": False,    # Auto-scale font to fit screen
+            # LedFx Gateway settings
+            "ledfx_enabled": False,     # Enable LedFx gateway
+            "ledfx_port": 21324,        # UDP port for LedFx
+            "ledfx_max_fps": 30,        # Maximum FPS for rate limiting
         }
 
     async def async_load_settings(self) -> None:
@@ -76,6 +84,86 @@ class IDotMatrixCoordinator(DataUpdateCoordinator):
     async def async_save_settings(self) -> None:
         """Save settings to storage."""
         await self._store.async_save(self.text_settings)
+
+    # --- LedFx Gateway Methods ---
+    
+    @property
+    def ledfx_gateway(self) -> Optional["LedFxGateway"]:
+        """Return the LedFx gateway instance."""
+        return self._ledfx_gateway
+    
+    @property
+    def ledfx_stats(self) -> dict:
+        """Return LedFx gateway statistics."""
+        if self._ledfx_gateway:
+            return self._ledfx_gateway.stats
+        return {
+            "running": False,
+            "fps": 0.0,
+            "frames_received": 0,
+            "frames_sent": 0,
+            "frames_skipped": 0,
+            "port": self.text_settings.get("ledfx_port", 21324),
+        }
+    
+    async def async_start_ledfx_gateway(self) -> bool:
+        """Start the LedFx gateway."""
+        from .ledfx_gateway import LedFxGateway
+        
+        if self._ledfx_gateway and self._ledfx_gateway.is_running:
+            _LOGGER.debug("LedFx gateway already running")
+            return True
+        
+        # Get settings
+        port = self.text_settings.get("ledfx_port", 21324)
+        screen_size = self.text_settings.get("screen_size", 32)
+        max_fps = self.text_settings.get("ledfx_max_fps", 30)
+        
+        # Create gateway instance
+        self._ledfx_gateway = LedFxGateway(
+            coordinator=self,
+            host="0.0.0.0",
+            port=port,
+            screen_size=screen_size,
+        )
+        self._ledfx_gateway.set_max_fps(max_fps)
+        
+        # Enter DIY mode on the display
+        try:
+            await IDMImage().setMode(1)
+        except Exception as e:
+            _LOGGER.warning(f"Could not enter DIY mode: {e}")
+        
+        # Start the gateway
+        success = await self._ledfx_gateway.start()
+        
+        if success:
+            self.text_settings["ledfx_enabled"] = True
+            await self.async_save_settings()
+            _LOGGER.info(f"LedFx gateway started on port {port}")
+        
+        return success
+    
+    async def async_stop_ledfx_gateway(self) -> None:
+        """Stop the LedFx gateway."""
+        if self._ledfx_gateway:
+            await self._ledfx_gateway.stop()
+            self._ledfx_gateway = None
+        
+        self.text_settings["ledfx_enabled"] = False
+        await self.async_save_settings()
+        _LOGGER.info("LedFx gateway stopped")
+    
+    async def async_restart_ledfx_gateway(self) -> bool:
+        """Restart the LedFx gateway with new settings."""
+        await self.async_stop_ledfx_gateway()
+        return await self.async_start_ledfx_gateway()
+    
+    async def async_restore_ledfx_state(self) -> None:
+        """Restore LedFx gateway state on startup (if it was enabled)."""
+        if self.text_settings.get("ledfx_enabled", False):
+            _LOGGER.info("Restoring LedFx gateway state...")
+            await self.async_start_ledfx_gateway()
 
     async def _async_update_data(self):
         """Fetch data from the device."""

@@ -24,7 +24,71 @@ async def async_setup_entry(
         IDotMatrixTextBlur(coordinator, entry),
         IDotMatrixTextFontSize(coordinator, entry),
         IDotMatrixFunTextDelay(coordinator, entry),
+        IDotMatrixLedFxPort(coordinator, entry),
+        IDotMatrixLedFxMaxFps(coordinator, entry),
     ])
+
+class IDotMatrixLedFxPort(IDotMatrixEntity, NumberEntity):
+    """Representation of the LedFx UDP Port configuration."""
+
+    _attr_icon = "mdi:lan-connect"
+    _attr_name = "LedFx UDP Port"
+    _attr_native_min_value = 1024
+    _attr_native_max_value = 65535
+    _attr_native_step = 1
+    _attr_entity_category = EntityCategory.CONFIG
+    
+    @property
+    def unique_id(self) -> str:
+        return f"{self._mac}_ledfx_port"
+
+    @property
+    def native_value(self) -> float | None:
+        return self.coordinator.text_settings.get("ledfx_port", 21324)
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Set the value."""
+        old_port = self.coordinator.text_settings.get("ledfx_port", 21324)
+        new_port = int(value)
+        
+        self.coordinator.text_settings["ledfx_port"] = new_port
+        await self.coordinator.async_save_settings()
+        
+        # Restart gateway if running and port changed
+        if old_port != new_port and self.coordinator.text_settings.get("ledfx_enabled", False):
+            await self.coordinator.async_restart_ledfx_gateway()
+        
+        self.async_write_ha_state()
+
+class IDotMatrixLedFxMaxFps(IDotMatrixEntity, NumberEntity):
+    """Representation of the LedFx Max FPS configuration."""
+
+    _attr_icon = "mdi:speedometer"
+    _attr_name = "LedFx Max FPS"
+    _attr_native_min_value = 5
+    _attr_native_max_value = 60
+    _attr_native_step = 1
+    _attr_entity_category = EntityCategory.CONFIG
+    
+    @property
+    def unique_id(self) -> str:
+        return f"{self._mac}_ledfx_max_fps"
+
+    @property
+    def native_value(self) -> float | None:
+        return self.coordinator.text_settings.get("ledfx_max_fps", 30)
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Set the value."""
+        self.coordinator.text_settings["ledfx_max_fps"] = int(value)
+        await self.coordinator.async_save_settings()
+        
+        # Update gateway if running
+        gateway = self.coordinator.ledfx_gateway
+        if gateway:
+            gateway.set_max_fps(int(value))
+        
+        self.async_write_ha_state()
 
 class IDotMatrixFunTextDelay(IDotMatrixEntity, NumberEntity):
     """Representation of the Fun Text Delay control."""

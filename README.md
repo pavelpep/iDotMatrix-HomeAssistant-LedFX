@@ -232,7 +232,3 @@ This integration fully supports **ESPHome Bluetooth Proxies**.
 - iDotMatrix client based on [python3-idotmatrix-client](https://github.com/derkalle4/python3-idotmatrix-client)
 
 ---
-
-<p align="center">
-  Built with ❤️ by Adrian
-</p>
