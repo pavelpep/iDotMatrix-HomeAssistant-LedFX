@@ -22,7 +22,46 @@ async def async_setup_entry(
         IDotMatrixMultiline(coordinator, entry),
         IDotMatrixAutosize(coordinator, entry),
         IDotMatrixClockDate(coordinator, entry),
+        IDotMatrixLedFxGateway(coordinator, entry),
     ])
+
+class IDotMatrixLedFxGateway(IDotMatrixEntity, SwitchEntity):
+    """Switch to enable/disable the LedFx Gateway."""
+
+    _attr_icon = "mdi:led-strip-variant"
+    _attr_name = "LedFx Gateway"
+    # No entity_category - appears as main control on device page
+    
+    @property
+    def unique_id(self) -> str:
+        return f"{self._mac}_ledfx_gateway"
+
+    @property
+    def is_on(self) -> bool:
+        """Return true if LedFx gateway is running."""
+        return self.coordinator.text_settings.get("ledfx_enabled", False)
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        """Return extra state attributes."""
+        stats = self.coordinator.ledfx_stats
+        return {
+            "fps": stats.get("fps", 0),
+            "frames_received": stats.get("frames_received", 0),
+            "frames_sent": stats.get("frames_sent", 0),
+            "frames_skipped": stats.get("frames_skipped", 0),
+            "port": stats.get("port", 21324),
+        }
+
+    async def async_turn_on(self, **kwargs) -> None:
+        """Start the LedFx gateway."""
+        await self.coordinator.async_start_ledfx_gateway()
+        self.async_write_ha_state()
+
+    async def async_turn_off(self, **kwargs) -> None:
+        """Stop the LedFx gateway."""
+        await self.coordinator.async_stop_ledfx_gateway()
+        self.async_write_ha_state()
 
 class IDotMatrixAutosize(IDotMatrixEntity, SwitchEntity):
     """Switch to toggle automatic font sizing (Perfect Fit)."""
